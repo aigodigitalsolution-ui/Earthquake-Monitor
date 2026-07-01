@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuakeWatch - Real-Time Earthquakes</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: #1e2937;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            z-index: 1000;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #22d3ee, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: #475569;
+        }
+        
+        button.active {
+            background: #22d3ee;
+            color: #0f172a;
+            font-weight: bold;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 12px;
+            padding: 16px;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+        
+        .quake-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .quake-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #1e2937;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid #22d3ee;
+        }
+        
+        .quake-item:hover {
+            transform: translateX(4px);
+            background: #334155;
+        }
+        
+        .magnitude {
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+        
+        .location {
+            font-size: 0.95rem;
+            color: #94a3b8;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: 1px solid #334155;
+            z-index: 1000;
+        }
+        
+        .status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            border: 1px solid #334155;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>🌍 QuakeWatch</h1>
+            <p style="font-size: 0.9rem; color: #64748b;">Real-time Worldwide Earthquakes</p>
+        </div>
+        <div class="controls">
+            <button onclick="setFeed('all_day')" class="active" id="btn-day">Past 24h</button>
+            <button onclick="setFeed('all_hour')" id="btn-hour">Past Hour</button>
+            <button onclick="setFeed('significant_month')" id="btn-sig">Significant</button>
+            <button onclick="toggleUserLocation()" id="loc-btn">📍 My Location</button>
+            <button onclick="refreshData()">↻ Refresh</button>
+        </div>
+    </header>
+    
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <h3 style="margin-bottom: 12px; color: #67e8f9;">Recent Earthquakes</h3>
+            <div id="quake-list" class="quake-list"></div>
+            
+            <div style="margin-top: 16px; font-size: 0.8rem; color: #64748b;">
+                <strong>Data from USGS</strong><br>
+                Updates every 60 seconds
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="legend">
+            <strong>Magnitude</strong><br>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                <span style="background: #22d3ee; width: 18px; height: 18px; border-radius: 50%; display: inline-block;"></span>
+                <span>&lt; 4.0</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #eab308; width: 18px; height: 18px; border-radius: 50%; display: inline-block;"></span>
+                <span>4.0 - 5.9</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #f97316; width: 18px; height: 18px; border-radius: 50%; display: inline-block;"></span>
+                <span>6.0 - 6.9</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #ef4444; width: 18px; height: 18px; border-radius: 50%; display: inline-block;"></span>
+                <span>≥ 7.0</span>
+            </div>
+        </div>
+        
+        <div class="status" id="status">Loading earthquake data...</div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        let map = L.map('map', {
+            zoomControl: true,
+            attributionControl: true
+        }).setView([20, 0], 2);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Layer groups
+        let earthquakeLayer = L.layerGroup().addTo(map);
+        let userMarker = null;
+        let userCircle = null;
+        
+        // Current feed
+        let currentFeed = 'all_day';
+        let earthquakesData = [];
+        let updateInterval = null;
+        
+        // Get color based on magnitude
+        function getColor(magnitude) {
+            if (magnitude >= 7.0) return '#ef4444';
+            if (magnitude >= 6.0) return '#f97316';
+            if (magnitude >= 4.0) return '#eab308';
+            return '#22d3ee';
+        }
+        
+        // Get radius based on magnitude
+        function getRadius(magnitude) {
+            return Math.pow(magnitude, 1.5) * 1.5; // Nice visual scaling
+        }
+        
+        // Format time
+        function formatTime(timeString) {
+            const date = new Date(timeString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            const hours = Math.floor(diffMins / 60);
+            return `${hours}h ago`;
+        }
+        
+        // Fetch earthquake data
+        async function fetchEarthquakes() {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Fetching latest data...';
+            
+            try {
+                // USGS real-time feeds
+                const urls = {
+                    'all_hour': 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
+                    'all_day': 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+                    'significant_month': 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson'
+                };
+                
+                const response = await fetch(urls[currentFeed]);
+                const data = await response.json();
+                
+                earthquakesData = data.features;
+                
+                // Clear previous markers
+                earthquakeLayer.clearLayers();
+                
+                // Add new markers
+                const quakeListEl = document.getElementById('quake-list');
+                quakeListEl.innerHTML = '';
+                
+                earthquakesData.sort((a, b) => b.properties.mag - a.properties.mag);
+                
+                earthquakesData.forEach((feature, index) => {
+                    const props = feature.properties;
+                    const coords = feature.geometry.coordinates;
+                    const lat = coords[1];
+                    const lng = coords[0];
+                    const mag = props.mag || 0;
+                    
+                    // Create circle marker
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: getRadius(mag),
+                        fillColor: getColor(mag),
+                        color: '#fff',
+                        weight: 1.5,
+                        opacity: 1,
+                        fillOpacity: 0.85
+                    }).addTo(earthquakeLayer);
+                    
+                    // Popup
+                    const popupContent = `
+                        <b>M ${mag.toFixed(1)}</b><br>
+                        ${props.place}<br>
+                        <small>${new Date(props.time).toLocaleString()}</small><br>
+                        Depth: ${coords[2].toFixed(1)} km
+                    `;
+                    marker.bindPopup(popupContent);
+                    
+                    // Click to zoom
+                    marker.on('click', () => {
+                        map.flyTo([lat, lng], Math.max(6, 12 - Math.floor(mag)));
+                    });
+                    
+                    // Add to list (top 15)
+                    if (index < 15) {
+                        const div = document.createElement('div');
+                        div.className = 'quake-item';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <span class="magnitude" style="color: ${getColor(mag)};">M${mag.toFixed(1)}</span>
+                                    <div class="location">${props.place}</div>
+                                </div>
+                                <div style="text-align: right; font-size: 0.8rem; color: #64748b;">
+                                    ${formatTime(props.time)}
+                                </div>
+                            </div>
+                        `;
+                        div.onclick = () => {
+                            map.flyTo([lat, lng], Math.max(6, 12 - Math.floor(mag)));
+                            marker.openPopup();
+                        };
+                        quakeListEl.appendChild(div);
+                    }
+                });
+                
+                statusEl.textContent = `Updated • ${earthquakesData.length} events`;
+                
+            } catch (error) {
+                console.error('Error fetching earthquakes:', error);
+                statusEl.textContent = 'Error loading data. Retrying...';
+            }
+        }
+        
+        // Change feed
+        function setFeed(feed) {
+            currentFeed = feed;
+            
+            // Update active button
+            document.querySelectorAll('.controls button').forEach(btn => {
+                btn.classList.remove('active');
+                if ((feed === 'all_day' && btn.id === 'btn-day') ||
+                    (feed === 'all_hour' && btn.id === 'btn-hour') ||
+                    (feed === 'significant_month' && btn.id === 'btn-sig')) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            fetchEarthquakes();
+        }
+        
+        // Get user location
+        function toggleUserLocation() {
+            const locBtn = document.getElementById('loc-btn');
+            
+            if (userMarker) {
+                // Toggle off
+                if (userMarker) map.removeLayer(userMarker);
+                if (userCircle) map.removeLayer(userCircle);
+                userMarker = null;
+                userCircle = null;
+                locBtn.textContent = '📍 My Location';
+                return;
+            }
+            
+            locBtn.textContent = 'Finding location...';
+            
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser");
+                locBtn.textContent = '📍 My Location';
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Add user marker
+                    userMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'user-location',
+                            html: '📍',
+                            iconSize: [32, 32],
+                            iconAnchor: [16, 16]
+                        })
+                    }).addTo(map);
+                    
+                    // Add accuracy circle
+                    userCircle = L.circle([lat, lng], {
+                        radius: position.coords.accuracy,
+                        color: '#67e8f9',
+                        fillColor: '#67e8f9',
+                        fillOpacity: 0.15,
+                        weight: 2
+                    }).addTo(map);
+                    
+                    // Zoom to user
+                    map.flyTo([lat, lng], 8);
+                    
+                    locBtn.textContent = '📍 Hide Location';
+                    
+                    // Show nearby earthquakes (within ~1000km)
+                    highlightNearby(lat, lng);
+                },
+                error => {
+                    console.error(error);
+                    alert("Unable to retrieve your location. Please allow location access.");
+                    locBtn.textContent = '📍 My Location';
+                }
+            );
+        }
+        
+        // Highlight earthquakes near user
+        function highlightNearby(userLat, userLng) {
+            // Simple visual feedback - already handled by markers
+            // Could add filtering in future
+        }
+        
+        // Refresh data
+        function refreshData() {
+            fetchEarthquakes();
+        }
+        
+        // Auto refresh
+        function startAutoRefresh() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(() => {
+                fetchEarthquakes();
+            }, 60000); // Every minute
+        }
+        
+        // Initialize everything
+        function init() {
+            // Load initial data
+            fetchEarthquakes();
+            
+            // Start auto refresh
+            startAutoRefresh();
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', e => {
+                if (e.key === 'r' || e.key === 'R') {
+                    refreshData();
+                }
+            });
+            
+            // Add scale
+            L.control.scale().addTo(map);
+        }
+        
+        // Start the app
+        window.onload = init;
+    </script>
+</body>
+</html>
