@@ -62,7 +62,7 @@
         }
         #map { height: 100%; width: 100%; }
 
-        /* Info Panel - Optimized for Portrait */
+        /* Info Panel with Toggle */
         .info-panel {
             position: absolute;
             background: rgba(15, 23, 42, 0.96);
@@ -72,8 +72,35 @@
             z-index: 1000;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
             transition: all 0.3s ease;
+            overflow: hidden;
         }
-        /* Desktop (landscape) */
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: #67e8f9;
+            font-size: 1.4rem;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+        .info-panel.collapsed .toggle-btn {
+            transform: rotate(180deg);
+        }
+        .info-panel.collapsed .quake-list {
+            display: none;
+        }
+
+        /* Desktop */
         @media (min-width: 769px) {
             .info-panel {
                 top: 16px;
@@ -88,19 +115,13 @@
                 bottom: 80px;
                 left: 12px;
                 right: 12px;
-                max-height: 42vh;
+                max-height: 45vh;
                 width: auto;
-            }
-        }
-        /* Extra tall portrait phones */
-        @media (max-width: 768px) and (min-height: 700px) {
-            .info-panel {
-                max-height: 48vh;
             }
         }
 
         .quake-list {
-            max-height: calc(100% - 50px);
+            max-height: calc(100% - 60px);
             overflow-y: auto;
             scrollbar-width: thin;
         }
@@ -113,11 +134,9 @@
             transition: all 0.2s;
             border-left: 4px solid #22d3ee;
         }
-        .quake-item:hover {
-            transform: translateX(4px);
-            background: #334155;
-        }
+        .quake-item:hover { transform: translateX(4px); background: #334155; }
         .magnitude { font-size: 1.25rem; font-weight: bold; }
+
         .legend {
             position: absolute;
             bottom: 12px;
@@ -149,7 +168,6 @@
         }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* Mobile header tweaks */
         @media (max-width: 768px) {
             header { padding: 10px 12px; }
             .controls button { padding: 6px 10px; font-size: 0.85rem; }
@@ -175,8 +193,12 @@
     <div class="map-container">
         <div id="map"></div>
         
+        <!-- Collapsible Info Panel -->
         <div class="info-panel" id="info-panel">
-            <h3 style="margin-bottom: 10px; color: #67e8f9;">Live Events</h3>
+            <div class="info-header" onclick="togglePanel()">
+                <h3 style="color: #67e8f9;">Live Events</h3>
+                <button class="toggle-btn" id="toggle-icon">▼</button>
+            </div>
             <div id="quake-list" class="quake-list"></div>
         </div>
         
@@ -212,6 +234,7 @@
         let isWsConnected = false;
         let currentFeed = 'all_day';
         let earthquakes = new Map();
+        let isPanelCollapsed = false;
 
         function getColor(m) {
             if (m >= 7) return '#ef4444';
@@ -327,7 +350,8 @@
 
         function toggleUserLocation() {
             if (userMarker) {
-                map.removeLayer(userMarker); if (userCircle) map.removeLayer(userCircle);
+                map.removeLayer(userMarker); 
+                if (userCircle) map.removeLayer(userCircle);
                 userMarker = userCircle = null;
                 document.getElementById('loc-btn').textContent = '📍';
                 return;
@@ -345,6 +369,12 @@
             earthquakeLayer.clearLayers();
             earthquakes.clear();
             fetchUSGS();
+        }
+
+        function togglePanel() {
+            const panel = document.getElementById('info-panel');
+            isPanelCollapsed = !isPanelCollapsed;
+            panel.classList.toggle('collapsed', isPanelCollapsed);
         }
 
         function init() {
