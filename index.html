@@ -22,7 +22,7 @@
             animation: alertPop 0.4s ease;
         }
         @keyframes alertPop {
-            0% { transform: translate(-50%, -100%); opacity: 0; }
+            0% { transform: translate(-50%, -120%); opacity: 0; }
             100% { transform: translate(-50%, 0); opacity: 1; }
         }
     </style>
@@ -38,13 +38,24 @@
                     <p class="text-[10px] text-emerald-400">USGS Real-time</p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
+            
+            <div class="flex items-center gap-1.5">
+                <!-- View Toggle -->
                 <button onclick="toggleView()" id="toggleBtn"
-                        class="toggle-btn flex items-center gap-2 px-5 py-2 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-3xl text-sm font-medium">
-                    <span id="viewIcon">🌍</span>
-                    <span id="viewText">Worldwide</span>
+                        class="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-3xl text-xs font-medium transition">
+                    <span id="viewIcon" class="text-base">🌐</span>
+                    <span id="viewText" class="text-xs">World</span>
                 </button>
-                <button onclick="getUserLocation()" class="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center text-xl">📍</button>
+
+                <!-- Sound Toggle -->
+                <button onclick="toggleSound()" id="soundBtn"
+                        class="w-8 h-8 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-2xl flex items-center justify-center text-lg transition">
+                    🔊
+                </button>
+
+                <!-- GPS -->
+                <button onclick="getUserLocation()" 
+                        class="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center text-lg">📍</button>
             </div>
         </div>
     </header>
@@ -62,7 +73,8 @@
     </div>
 
     <!-- Floating Button -->
-    <button onclick="toggleSidebar()" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-600 px-7 py-3.5 rounded-3xl text-sm font-medium shadow-2xl z-[70]">
+    <button onclick="toggleSidebar()" 
+            class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-600 px-6 py-3 rounded-3xl text-sm font-medium shadow-2xl z-[70]">
         📋 Recent
     </button>
 
@@ -71,16 +83,42 @@
         <div class="flex gap-4 items-start">
             <div class="text-4xl">🚨</div>
             <div class="flex-1">
-                <div class="font-bold text-lg" id="alertMag"></div>
+                <div class="font-bold text-lg flex items-center gap-2" id="alertMag"></div>
                 <div id="alertPlace" class="text-sm mt-1"></div>
                 <div id="alertTime" class="text-xs text-red-200 mt-1"></div>
             </div>
         </div>
-        <button onclick="closeAlert()" 
-                class="absolute top-3 right-3 text-red-200 hover:text-white text-xl">✕</button>
+        <button onclick="closeAlert()" class="absolute top-4 right-4 text-red-200 hover:text-white text-2xl">✕</button>
     </div>
 
     <script>
+        let soundEnabled = true;
+        let audioContext;
+
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch(e) {}
+        }
+
+        function playAlertSound(mag) {
+            if (!soundEnabled || !audioContext) return;
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(mag > 6.5 ? 160 : 280, audioContext.currentTime);
+                gain.gain.value = 0.25;
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.start();
+                setTimeout(() => {
+                    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.9);
+                    oscillator.stop(audioContext.currentTime + 1.3);
+                }, 700);
+            } catch(e) {}
+        }
+
         const map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -94,7 +132,6 @@
         let currentData = [];
         let userLat = null, userLon = null;
         let isWorldwide = true;
-        let lastQuakeCount = 0;
 
         function getMagColor(mag) {
             if (mag >= 7) return '#ef4444';
@@ -126,16 +163,14 @@
                 const data = await res.json();
                 const newData = data.features;
 
-                // Check for new significant earthquakes
                 if (currentData.length > 0) {
-                    const newQuakes = newData.filter(n => 
+                    const newStrong = newData.filter(n => 
                         !currentData.some(old => old.id === n.id) && n.properties.mag >= 5
                     );
-                    newQuakes.forEach(showAlert);
+                    newStrong.forEach(showAlert);
                 }
 
                 currentData = newData;
-                lastQuakeCount = currentData.length;
 
                 quakeCluster.clearLayers();
                 currentData.forEach(f => {
@@ -148,10 +183,10 @@
 
         function showAlert(quake) {
             const mag = quake.properties.mag;
-            const place = quake.properties.place;
+            const place = quake.properties.place || "Unknown location";
             const time = new Date(quake.properties.time).toLocaleString();
 
-            document.getElementById('alertMag').innerHTML = `${mag} Magnitude <span class="text-red-200 text-base">🚨</span>`;
+            document.getElementById('alertMag').innerHTML = `${mag} Magnitude <span class="text-red-200">🚨</span>`;
             document.getElementById('alertPlace').textContent = place;
             document.getElementById('alertTime').textContent = time;
 
@@ -159,15 +194,20 @@
             popup.classList.remove('hidden');
             popup.style.display = 'block';
 
-            // Auto close after 10 seconds
-            setTimeout(() => {
-                closeAlert();
-            }, 10000);
+            // Vibration + Sound
+            if (navigator.vibrate) navigator.vibrate(mag >= 7 ? [300, 150, 300] : [200, 100, 200]);
+            playAlertSound(mag);
+
+            setTimeout(() => closeAlert(), 10000);
         }
 
         function closeAlert() {
-            const popup = document.getElementById('alertPopup');
-            popup.style.display = 'none';
+            document.getElementById('alertPopup').style.display = 'none';
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
         }
 
         function updateList(filtered = null) {
@@ -179,7 +219,7 @@
             quakes.forEach((f, i) => {
                 const p = f.properties;
                 const mag = p.mag || 0;
-                const warning = mag >= 5 ? '<span class="text-red-500 font-bold">!!!!</span> ' : '';
+                const warning = mag >= 5 ? '<span class="text-red-500">!!!!</span> ' : '';
                 html += `
                     <div onclick="zoomToQuake(${i});" class="quake-item bg-zinc-900 border border-zinc-700 p-4 rounded-3xl cursor-pointer">
                         <div class="flex gap-4">
@@ -213,7 +253,7 @@
                 isWorldwide = false;
                 updateToggleButton();
                 filterLocalQuakes();
-            }, () => alert("GPS access denied or unavailable."));
+            }, () => alert("GPS access denied."));
         }
 
         function filterLocalQuakes() {
@@ -244,8 +284,8 @@
             const icon = document.getElementById('viewIcon');
             const text = document.getElementById('viewText');
             if (isWorldwide) {
-                icon.textContent = '🌍';
-                text.textContent = 'Worldwide';
+                icon.textContent = '🌐';
+                text.textContent = 'World';
             } else {
                 icon.textContent = '📍';
                 text.textContent = 'Local';
@@ -255,13 +295,9 @@
         function toggleView() {
             isWorldwide = !isWorldwide;
             updateToggleButton();
-            if (isWorldwide) {
-                fetchEarthquakes();
-            } else if (userLat) {
-                filterLocalQuakes();
-            } else {
-                getUserLocation();
-            }
+            if (isWorldwide) fetchEarthquakes();
+            else if (userLat) filterLocalQuakes();
+            else getUserLocation();
         }
 
         function toggleSidebar() {
@@ -271,6 +307,7 @@
         setInterval(() => { if (isWorldwide) fetchEarthquakes(); }, 60000);
 
         window.onload = () => {
+            initAudio();
             fetchEarthquakes();
             updateToggleButton();
         };
