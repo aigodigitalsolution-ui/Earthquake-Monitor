@@ -14,58 +14,119 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         header {
             background: #1e2937;
-            padding: 1rem 2rem;
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #334155;
+            z-index: 1000;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         h1 {
-            font-size: 1.8rem;
+            font-size: 1.55rem;
             background: linear-gradient(90deg, #22d3ee, #a855f7);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .status-bar {
+        .controls {
             display: flex;
-            gap: 1rem;
+            gap: 6px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 7px 12px;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
             font-size: 0.9rem;
         }
-        .live-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: #22c55e;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
+        button:hover { background: #475569; }
+        button.active {
+            background: #22d3ee;
+            color: #0f172a;
+            font-weight: bold;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
         }
-        .map-container { flex: 1; position: relative; }
         #map { height: 100%; width: 100%; }
+
+        /* Info Panel with Toggle */
         .info-panel {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15, 23, 42, 0.96);
             border-radius: 12px;
-            padding: 16px;
-            width: 340px;
-            max-height: 75vh;
-            overflow-y: auto;
+            padding: 14px;
             border: 1px solid #334155;
             z-index: 1000;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
         }
-        .quake-list { max-height: 420px; overflow-y: auto; }
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: #67e8f9;
+            font-size: 1.4rem;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+        .info-panel.collapsed .toggle-btn {
+            transform: rotate(180deg);
+        }
+        .info-panel.collapsed .quake-list {
+            display: none;
+        }
+
+        /* Desktop */
+        @media (min-width: 769px) {
+            .info-panel {
+                top: 16px;
+                right: 16px;
+                width: 320px;
+                max-height: 65vh;
+            }
+        }
+        /* Mobile Portrait */
+        @media (max-width: 768px) {
+            .info-panel {
+                bottom: 80px;
+                left: 12px;
+                right: 12px;
+                max-height: 45vh;
+                width: auto;
+            }
+        }
+
+        .quake-list {
+            max-height: calc(100% - 60px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
         .quake-item {
-            padding: 12px;
+            padding: 11px;
             margin-bottom: 8px;
             background: #1e2937;
             border-radius: 8px;
@@ -74,28 +135,42 @@
             border-left: 4px solid #22d3ee;
         }
         .quake-item:hover { transform: translateX(4px); background: #334155; }
-        .magnitude { font-size: 1.35rem; font-weight: bold; }
+        .magnitude { font-size: 1.25rem; font-weight: bold; }
+
         .legend {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 12px;
+            left: 12px;
             background: rgba(15, 23, 42, 0.95);
-            padding: 12px;
+            padding: 9px;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             border: 1px solid #334155;
             z-index: 1000;
         }
         .status {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 12px;
+            right: 12px;
             background: rgba(15, 23, 42, 0.95);
-            padding: 8px 16px;
+            padding: 6px 14px;
             border-radius: 9999px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             z-index: 1000;
             border: 1px solid #334155;
+        }
+        .live-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        @media (max-width: 768px) {
+            header { padding: 10px 12px; }
+            .controls button { padding: 6px 10px; font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -105,53 +180,61 @@
             <h1>🌍 QuakeWatch</h1>
             <p style="font-size: 0.9rem; color: #64748b;">Real-time Worldwide Earthquakes</p>
         </div>
-        <div class="status-bar">
-            <span><span class="live-dot"></span> LIVE via WebSocket</span>
-            <button onclick="toggleWebSocket()" id="ws-btn">WebSocket ON</button>
-            <button onclick="refreshData()">↻ Refresh</button>
+        <div class="controls">
+            <button onclick="setFeed('all_day')" class="active" id="btn-day">24h</button>
+            <button onclick="setFeed('all_hour')" id="btn-hour">1h</button>
+            <button onclick="setFeed('significant_month')" id="btn-sig">Sig</button>
+            <button onclick="toggleUserLocation()" id="loc-btn">📍</button>
+            <button onclick="toggleWebSocket()" id="ws-btn"><span class="live-dot"></span> WS</button>
+            <button onclick="refreshData()">↻</button>
         </div>
     </header>
     
     <div class="map-container">
         <div id="map"></div>
         
-        <div class="info-panel">
-            <h3 style="margin-bottom: 12px; color: #67e8f9;">Live Events</h3>
+        <!-- Collapsible Info Panel -->
+        <div class="info-panel" id="info-panel">
+            <div class="info-header" onclick="togglePanel()">
+                <h3 style="color: #67e8f9;">Live Events</h3>
+                <button class="toggle-btn" id="toggle-icon">▼</button>
+            </div>
             <div id="quake-list" class="quake-list"></div>
         </div>
         
         <div class="legend">
             <strong>Magnitude</strong><br>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-                <span style="background:#22d3ee;width:18px;height:18px;border-radius:50%;display:inline-block;"></span> &lt; 4.0
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+                <span style="background:#22d3ee;width:16px;height:16px;border-radius:50%;display:inline-block;"></span> &lt;4
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <span style="background:#eab308;width:18px;height:18px;border-radius:50%;display:inline-block;"></span> 4–5.9
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="background:#eab308;width:16px;height:16px;border-radius:50%;display:inline-block;"></span> 4-5.9
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <span style="background:#f97316;width:18px;height:18px;border-radius:50%;display:inline-block;"></span> 6–6.9
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="background:#f97316;width:16px;height:16px;border-radius:50%;display:inline-block;"></span> 6-6.9
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <span style="background:#ef4444;width:18px;height:18px;border-radius:50%;display:inline-block;"></span> ≥ 7.0
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="background:#ef4444;width:16px;height:16px;border-radius:50%;display:inline-block;"></span> ≥7
             </div>
         </div>
         
-        <div class="status" id="status">Connecting to live feed...</div>
+        <div class="status" id="status">Live feeds active</div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map = L.map('map').setView([20, 0], 2);
+        const map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        let earthquakeLayer = L.layerGroup().addTo(map);
-        let userMarker = null;
-        let userCircle = null;
+        const earthquakeLayer = L.layerGroup().addTo(map);
+        let userMarker = null, userCircle = null;
         let ws = null;
         let isWsConnected = false;
-        let earthquakes = new Map(); // id -> feature
+        let currentFeed = 'all_day';
+        let earthquakes = new Map();
+        let isPanelCollapsed = false;
 
         function getColor(m) {
             if (m >= 7) return '#ef4444';
@@ -160,29 +243,24 @@
             return '#22d3ee';
         }
 
-        function getRadius(m) {
-            return Math.max(6, Math.pow(m, 1.6) * 1.8);
-        }
+        function getRadius(m) { return Math.max(5, Math.pow(m || 1, 1.6) * 1.6); }
 
-        function formatTime(time) {
-            const diff = Date.now() - new Date(time);
+        function formatTime(timeStr) {
+            const diff = Date.now() - new Date(timeStr);
             const mins = Math.floor(diff / 60000);
             return mins < 1 ? 'Just now' : mins < 60 ? `\( {mins}m ago` : ` \){Math.floor(mins/60)}h ago`;
         }
 
-        // Add or update marker
         function addOrUpdateMarker(feature) {
-            const id = feature.id || feature.properties.id;
-            const props = feature.properties;
-            const coords = feature.geometry.coordinates;
-            const lat = coords[1], lng = coords[0];
+            const id = feature.id || feature.properties?.id || feature.properties?.unid;
+            if (!id) return;
+            const props = feature.properties || {};
+            const coords = feature.geometry?.coordinates || [];
+            const lat = coords[1] || props.lat;
+            const lng = coords[0] || props.lon;
             const mag = parseFloat(props.mag || 0);
 
-            // Remove old if exists
-            if (earthquakes.has(id)) {
-                const old = earthquakes.get(id).marker;
-                if (old) earthquakeLayer.removeLayer(old);
-            }
+            if (earthquakes.has(id)) earthquakeLayer.removeLayer(earthquakes.get(id).marker);
 
             const marker = L.circleMarker([lat, lng], {
                 radius: getRadius(mag),
@@ -190,170 +268,118 @@
                 color: '#fff',
                 weight: 2,
                 opacity: 1,
-                fillOpacity: 0.9
+                fillOpacity: 0.85
             }).addTo(earthquakeLayer);
 
-            marker.bindPopup(`
-                <b>M${mag.toFixed(1)}</b><br>
-                ${props.place || props.flynn_region || 'Unknown'}<br>
-                <small>${new Date(props.time || props.updated).toLocaleString()}</small><br>
-                Depth: ${(coords[2] || props.depth || 0).toFixed(1)} km
-            `);
-
-            marker.on('click', () => map.flyTo([lat, lng], 8));
+            marker.bindPopup(`<strong>M\( {mag.toFixed(1)}</strong><br> \){props.place || props.flynn_region || 'Unknown'}`);
 
             earthquakes.set(id, { feature, marker });
         }
 
-        // Render list (latest 12)
-        function renderList() {
+        function renderQuakeList() {
             const listEl = document.getElementById('quake-list');
             listEl.innerHTML = '';
-
             const sorted = Array.from(earthquakes.values())
-                .sort((a, b) => new Date(b.feature.properties.time || b.feature.properties.updated) - new Date(a.feature.properties.time || a.feature.properties.updated));
+                .sort((a, b) => new Date(b.feature.properties?.time || 0) - new Date(a.feature.properties?.time || 0));
 
             sorted.slice(0, 12).forEach(item => {
-                const props = item.feature.properties;
+                const props = item.feature.properties || {};
                 const mag = parseFloat(props.mag || 0);
                 const div = document.createElement('div');
                 div.className = 'quake-item';
                 div.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;align-items:start">
                         <div>
                             <span class="magnitude" style="color:\( {getColor(mag)}">M \){mag.toFixed(1)}</span>
-                            <div style="font-size:0.9rem;margin-top:4px;">${props.place || props.flynn_region || 'Unknown location'}</div>
+                            <div style="font-size:0.9rem;margin-top:4px;">${props.place || props.flynn_region || 'Unknown'}</div>
                         </div>
-                        <div style="text-align:right;font-size:0.8rem;color:#64748b;">
-                            ${formatTime(props.time || props.updated)}
-                        </div>
+                        <div style="text-align:right;font-size:0.8rem;color:#64748b;">${formatTime(props.time || props.updated)}</div>
                     </div>
                 `;
                 div.onclick = () => {
-                    const coords = item.feature.geometry.coordinates;
-                    map.flyTo([coords[1], coords[0]], 8);
+                    const c = item.feature.geometry?.coordinates || [];
+                    map.flyTo([c[1] || props.lat, c[0] || props.lon], 8);
                     item.marker.openPopup();
                 };
                 listEl.appendChild(div);
             });
         }
 
-        // Fetch initial USGS data
-        async function fetchInitialData() {
+        async function fetchUSGS() {
             try {
-                const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+                const urls = {
+                    all_hour: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
+                    all_day: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+                    significant_month: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson'
+                };
+                const res = await fetch(urls[currentFeed]);
                 const data = await res.json();
-                
-                data.features.forEach(f => {
-                    addOrUpdateMarker(f);
-                });
-                renderList();
-                document.getElementById('status').textContent = `Loaded ${data.features.length} events`;
-            } catch (e) {
-                console.error(e);
-            }
+                data.features.forEach(f => addOrUpdateMarker(f));
+                renderQuakeList();
+            } catch (e) { console.error(e); }
         }
 
-        // EMSC WebSocket
         function connectWebSocket() {
             if (ws) ws.close();
-            
             ws = new WebSocket('wss://www.seismicportal.eu/standing_order/websocket');
-            
-            ws.onopen = () => {
-                isWsConnected = true;
-                document.getElementById('ws-btn').textContent = 'WebSocket ON ✓';
-                document.getElementById('status').innerHTML = '✅ Connected to live EMSC WebSocket';
-            };
-            
+            ws.onopen = () => { isWsConnected = true; };
             ws.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
-                    if (data && data.action === 'create' || data.action === 'update') {
-                        const feature = {
-                            id: data.unid,
-                            type: "Feature",
-                            geometry: {
-                                type: "Point",
-                                coordinates: [parseFloat(data.lon), parseFloat(data.lat), parseFloat(data.depth)]
-                            },
-                            properties: {
-                                mag: parseFloat(data.mag),
-                                place: data.flynn_region,
-                                time: data.time,
-                                updated: data.updated || Date.now(),
-                                ...data
-                            }
-                        };
-                        
-                        addOrUpdateMarker(feature);
-                        renderList();
-                        
-                        // Flash effect on new big quake
-                        if (parseFloat(data.mag) >= 5.5) {
-                            const status = document.getElementById('status');
-                            status.style.transition = 'all 0.3s';
-                            status.style.background = '#ef4444';
-                            setTimeout(() => {
-                                status.style.background = 'rgba(15, 23, 42, 0.95)';
-                            }, 800);
-                        }
+                    const msg = JSON.parse(event.data);
+                    if (msg.data) {
+                        addOrUpdateMarker(msg.data);
+                        renderQuakeList();
                     }
-                } catch (err) {}
-            };
-            
-            ws.onclose = () => {
-                isWsConnected = false;
-                document.getElementById('ws-btn').textContent = 'Reconnect WebSocket';
-            };
-            
-            ws.onerror = () => {
-                console.error('WebSocket error');
+                } catch (_) {}
             };
         }
 
         function toggleWebSocket() {
-            if (isWsConnected) {
-                if (ws) ws.close();
-                document.getElementById('ws-btn').textContent = 'WebSocket OFF';
-            } else {
-                connectWebSocket();
+            if (isWsConnected) ws?.close();
+            else connectWebSocket();
+        }
+
+        function setFeed(feed) {
+            currentFeed = feed;
+            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${feed === 'all_day' ? 'day' : feed === 'all_hour' ? 'hour' : 'sig'}`).classList.add('active');
+            earthquakeLayer.clearLayers();
+            earthquakes.clear();
+            fetchUSGS();
+        }
+
+        function toggleUserLocation() {
+            if (userMarker) {
+                map.removeLayer(userMarker); 
+                if (userCircle) map.removeLayer(userCircle);
+                userMarker = userCircle = null;
+                document.getElementById('loc-btn').textContent = '📍';
+                return;
             }
+            navigator.geolocation.getCurrentPosition(pos => {
+                const {latitude: lat, longitude: lng, accuracy} = pos.coords;
+                userMarker = L.marker([lat, lng]).addTo(map);
+                userCircle = L.circle([lat, lng], {radius: accuracy, color:'#67e8f9', fillOpacity:0.15}).addTo(map);
+                map.flyTo([lat, lng], 8);
+                document.getElementById('loc-btn').textContent = '✕';
+            });
         }
 
         function refreshData() {
             earthquakeLayer.clearLayers();
             earthquakes.clear();
-            fetchInitialData();
+            fetchUSGS();
         }
 
-        // User location
-        function toggleUserLocation() {
-            if (userMarker) {
-                map.removeLayer(userMarker);
-                if (userCircle) map.removeLayer(userCircle);
-                userMarker = userCircle = null;
-                return;
-            }
-            
-            navigator.geolocation.getCurrentPosition(pos => {
-                const {latitude, longitude, accuracy} = pos.coords;
-                userMarker = L.marker([latitude, longitude], {icon: L.divIcon({className:'custom-pin', html:'📍', iconSize:[30,30]})}).addTo(map);
-                userCircle = L.circle([latitude, longitude], {radius: accuracy, color:'#67e8f9', fillOpacity:0.15}).addTo(map);
-                map.flyTo([latitude, longitude], 8);
-            });
+        function togglePanel() {
+            const panel = document.getElementById('info-panel');
+            isPanelCollapsed = !isPanelCollapsed;
+            panel.classList.toggle('collapsed', isPanelCollapsed);
         }
 
-        // Initialize
         function init() {
-            fetchInitialData();
-            connectWebSocket(); // Start live updates immediately
-            
-            // Keyboard shortcut
-            document.addEventListener('keydown', e => {
-                if (e.key.toLowerCase() === 'r') refreshData();
-            });
-            
+            fetchUSGS();
+            connectWebSocket();
             L.control.scale().addTo(map);
         }
 
