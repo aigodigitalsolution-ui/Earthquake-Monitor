@@ -25,42 +25,99 @@
             0% { transform: translate(-50%, -120%); opacity: 0; }
             100% { transform: translate(-50%, 0); opacity: 1; }
         }
+
+        .tsunami-alert {
+            animation: tsunamiPulse 2s infinite;
+        }
+        @keyframes tsunamiPulse {
+            0%, 100% { background-color: #b91c1c; }
+            50% { background-color: #dc2626; }
+        }
+
+        /* Compact mobile optimization */
+        .compact-btn {
+            padding: 0.45rem 0.7rem;
+            font-size: 0.75rem;
+            height: 36px;
+        }
+
+        /* Light mode styles */
+        .light body {
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .light .header {
+            background-color: rgba(255,255,255,0.95);
+            border-color: #e2e8f0;
+        }
+        .light .bg-zinc-900 { background-color: #f1f5f9; }
+        .light .bg-zinc-950 { background-color: #f8fafc; }
+        .light .border-zinc-700 { border-color: #cbd5e1; }
+        .light .border-zinc-800 { border-color: #e2e8f0; }
+        .light .text-white { color: #0f172a; }
+        .light .text-zinc-400 { color: #64748b; }
+        .light .text-zinc-500 { color: #64748b; }
+        .light .bg-zinc-800 { background-color: #e2e8f0; }
+        .light .bottom-sheet { background-color: #f8fafc; border-color: #e2e8f0; }
     </style>
 </head>
 <body class="bg-black text-white overflow-hidden h-screen relative">
     <!-- Header -->
     <header class="header absolute top-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-lg p-3 border-b border-zinc-800 z-50">
         <div class="flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">🌍</span>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">QuakeWatch</h1>
-                    <p class="text-[10px] text-emerald-400">USGS Real-time</p>
-                </div>
+            <!-- Title without globe icon -->
+            <div>
+                <h1 class="text-lg font-bold tracking-tight">QuakeWatch</h1>
+                <p class="text-[9px] text-emerald-400 -mt-0.5">USGS + NOAA</p>
             </div>
             
             <div class="flex items-center gap-1.5">
-                <!-- View Toggle -->
-                <button onclick="toggleView()" id="toggleBtn"
-                        class="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-3xl text-xs font-medium transition">
-                    <span id="viewIcon" class="text-base">🌐</span>
-                    <span id="viewText" class="text-xs">World</span>
+                <!-- Recent Button -->
+                <button onclick="toggleSidebar()" 
+                        class="compact-btn flex items-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-emerald-400 rounded-3xl font-medium transition">
+                    📋 <span class="hidden sm:inline">Recent</span>
                 </button>
 
-                <!-- Sound Toggle -->
-                <button onclick="toggleSound()" id="soundBtn"
-                        class="w-8 h-8 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-2xl flex items-center justify-center text-lg transition">
-                    🔊
+                <!-- Safety Button -->
+                <button onclick="showSafetyModal()" 
+                        class="compact-btn flex items-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-emerald-400 rounded-3xl font-medium transition">
+                    🛡️ <span class="hidden sm:inline">Safety</span>
+                </button>
+
+                <!-- View Toggle - Text hidden on mobile -->
+                <button onclick="toggleView()" id="toggleBtn"
+                        class="compact-btn flex items-center gap-1 bg-zinc-900 border border-zinc-700 hover:border-emerald-400 rounded-3xl font-medium transition">
+                    <span id="viewIcon" class="text-base">🌐</span>
+                    <span id="viewText" class="hidden sm:inline text-xs">World</span>
+                </button>
+
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()" id="themeBtn"
+                        class="w-8 h-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-emerald-400 rounded-2xl flex items-center justify-center text-base transition">
+                    🌙
                 </button>
 
                 <!-- GPS -->
                 <button onclick="getUserLocation()" 
-                        class="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center text-lg">📍</button>
+                        class="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center text-lg flex-shrink-0">📍</button>
             </div>
         </div>
     </header>
 
     <div id="map"></div>
+
+    <!-- Tsunami Warning Banner -->
+    <div id="tsunamiBanner" class="hidden fixed top-[68px] left-4 right-4 z-[55] tsunami-alert rounded-3xl p-4 shadow-2xl border border-red-400">
+        <div class="flex gap-3 items-start">
+            <div class="text-3xl">🌊</div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-base" id="tsunamiTitle">TSUNAMI WARNING</div>
+                <div id="tsunamiMessage" class="text-xs mt-1 leading-tight"></div>
+                <div id="tsunamiSource" class="text-[10px] text-red-200 mt-1"></div>
+            </div>
+            <button onclick="dismissTsunamiBanner()" class="text-red-200 hover:text-white text-xl mt-0.5">✕</button>
+        </div>
+    </div>
 
     <!-- Bottom Sheet -->
     <div id="sidebar" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-zinc-900 rounded-t-3xl shadow-2xl flex flex-col max-h-[82vh] translate-y-[calc(100%-70px)]">
@@ -72,11 +129,40 @@
         <div id="earthquakeList" class="flex-1 overflow-auto p-3 space-y-3"></div>
     </div>
 
-    <!-- Floating Button -->
-    <button onclick="toggleSidebar()" 
-            class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-600 px-6 py-3 rounded-3xl text-sm font-medium shadow-2xl z-[70]">
-        📋 Recent
-    </button>
+    <!-- Safety Modal -->
+    <div id="safetyModal" class="hidden fixed inset-0 bg-black/70 flex items-end lg:items-center justify-center z-[100] p-4">
+        <div class="bg-zinc-900 light:bg-white rounded-3xl max-w-lg w-full max-h-[85vh] overflow-hidden">
+            <div class="p-5 border-b border-zinc-700 light:border-zinc-200 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🛡️</span>
+                    <div>
+                        <h2 class="text-lg font-bold">Earthquake & Tsunami Safety</h2>
+                        <p class="text-xs text-emerald-400">Official Guidance</p>
+                    </div>
+                </div>
+                <button onclick="closeSafetyModal()" class="text-2xl text-zinc-400 hover:text-white">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-auto max-h-[65vh] space-y-6 text-sm">
+                <div>
+                    <h3 class="font-semibold text-red-400 mb-3">🌊 TSUNAMI WARNING PROTOCOL</h3>
+                    <ul class="space-y-3 text-xs">
+                        <li class="flex gap-3"><span class="text-red-400 font-bold">→</span> <span><strong>Immediate evacuation</strong> to higher ground if near coast</span></li>
+                        <li class="flex gap-3"><span class="text-red-400 font-bold">→</span> <span>Do not wait for official alerts</span></li>
+                    </ul>
+                </div>
+                <div class="text-xs text-zinc-400 light:text-zinc-500 border-t border-zinc-700 light:border-zinc-200 pt-4">
+                    Data from: NOAA Tsunami Warning Centers
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-zinc-700 light:border-zinc-200">
+                <button onclick="closeSafetyModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-3xl font-medium text-sm">
+                    Stay Informed • Stay Safe
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Alert Popup -->
     <div id="alertPopup" class="hidden fixed top-6 left-1/2 -translate-x-1/2 bg-red-600 text-white rounded-3xl shadow-2xl p-5 max-w-[90%] z-[100] alert-popup">
@@ -92,46 +178,10 @@
     </div>
 
     <script>
-        let soundEnabled = true;
-        let audioContext;
-
-        function initAudio() {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            } catch(e) {}
-        }
-
-        function playAlertSound(mag) {
-            if (!soundEnabled || !audioContext) return;
-            try {
-                const oscillator = audioContext.createOscillator();
-                const gain = audioContext.createGain();
-                oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(mag > 6.5 ? 160 : 280, audioContext.currentTime);
-                gain.gain.value = 0.25;
-                oscillator.connect(gain);
-                gain.connect(audioContext.destination);
-                oscillator.start();
-                setTimeout(() => {
-                    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.9);
-                    oscillator.stop(audioContext.currentTime + 1.3);
-                }, 700);
-            } catch(e) {}
-        }
-
-        const map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
-
-        let quakeCluster = L.markerClusterGroup({
-            maxClusterRadius: 50,
-            disableClusteringAtZoom: 12
-        }).addTo(map);
-
         let currentData = [];
         let userLat = null, userLon = null;
         let isWorldwide = true;
+        let isDarkMode = true;
 
         function getMagColor(mag) {
             if (mag >= 7) return '#ef4444';
@@ -164,9 +214,7 @@
                 const newData = data.features;
 
                 if (currentData.length > 0) {
-                    const newStrong = newData.filter(n => 
-                        !currentData.some(old => old.id === n.id) && n.properties.mag >= 5
-                    );
+                    const newStrong = newData.filter(n => !currentData.some(old => old.id === n.id) && n.properties.mag >= 5);
                     newStrong.forEach(showAlert);
                 }
 
@@ -179,6 +227,52 @@
 
                 updateList();
             } catch(e) { console.error(e); }
+        }
+
+        async function fetchTsunamiWarnings() {
+            try {
+                const res = await fetch('https://www.tsunami.gov/tiles/tsunami.json', { mode: 'cors' }).catch(() => null);
+                if (res && res.ok) {
+                    const data = await res.json();
+                    if (data && data.messages && data.messages.length > 0) {
+                        const latest = data.messages[0];
+                        showTsunamiWarning(latest);
+                    }
+                } else {
+                    checkTsunamiFromQuakes();
+                }
+            } catch (e) {
+                checkTsunamiFromQuakes();
+            }
+        }
+
+        function checkTsunamiFromQuakes() {
+            const potential = currentData.filter(q => {
+                const mag = q.properties.mag || 0;
+                const place = (q.properties.place || '').toLowerCase();
+                return mag >= 6.8 && (place.includes('ocean') || place.includes('pacific') || place.includes('coast'));
+            });
+            
+            if (potential.length > 0) {
+                showTsunamiWarning({
+                    title: "Potential Tsunami Threat",
+                    message: `${potential[0].properties.mag}M earthquake detected. Coastal areas should be alert.`,
+                    source: "USGS + NOAA Correlation",
+                    time: potential[0].properties.time
+                });
+            }
+        }
+
+        function showTsunamiWarning(tsunami) {
+            const banner = document.getElementById('tsunamiBanner');
+            document.getElementById('tsunamiTitle').textContent = '🌊 TSUNAMI WARNING';
+            document.getElementById('tsunamiMessage').textContent = tsunami.message || tsunami.title || "Tsunami alert issued for affected regions.";
+            document.getElementById('tsunamiSource').textContent = tsunami.source || "NOAA Tsunami Warning Center";
+            banner.classList.remove('hidden');
+        }
+
+        function dismissTsunamiBanner() {
+            document.getElementById('tsunamiBanner').classList.add('hidden');
         }
 
         function showAlert(quake) {
@@ -194,20 +288,13 @@
             popup.classList.remove('hidden');
             popup.style.display = 'block';
 
-            // Vibration + Sound
             if (navigator.vibrate) navigator.vibrate(mag >= 7 ? [300, 150, 300] : [200, 100, 200]);
-            playAlertSound(mag);
 
             setTimeout(() => closeAlert(), 10000);
         }
 
         function closeAlert() {
             document.getElementById('alertPopup').style.display = 'none';
-        }
-
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
         }
 
         function updateList(filtered = null) {
@@ -295,8 +382,10 @@
         function toggleView() {
             isWorldwide = !isWorldwide;
             updateToggleButton();
-            if (isWorldwide) fetchEarthquakes();
-            else if (userLat) filterLocalQuakes();
+            if (isWorldwide) {
+                fetchEarthquakes();
+                fetchTsunamiWarnings();
+            } else if (userLat) filterLocalQuakes();
             else getUserLocation();
         }
 
@@ -304,12 +393,63 @@
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        setInterval(() => { if (isWorldwide) fetchEarthquakes(); }, 60000);
+        function showSafetyModal() {
+            document.getElementById('safetyModal').classList.remove('hidden');
+            document.getElementById('safetyModal').classList.add('flex');
+        }
+
+        function closeSafetyModal() {
+            const modal = document.getElementById('safetyModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            const body = document.body;
+            
+            if (isDarkMode) {
+                body.classList.remove('light');
+                document.getElementById('themeBtn').innerHTML = '🌙';
+            } else {
+                body.classList.add('light');
+                document.getElementById('themeBtn').innerHTML = '☀️';
+            }
+            
+            localStorage.setItem('quakeWatchDarkMode', isDarkMode);
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem('quakeWatchDarkMode');
+            if (saved !== null) isDarkMode = saved === 'true';
+            if (!isDarkMode) {
+                document.body.classList.add('light');
+                document.getElementById('themeBtn').innerHTML = '☀️';
+            }
+        }
+
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let quakeCluster = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            disableClusteringAtZoom: 12
+        }).addTo(map);
+
+        setInterval(() => {
+            if (isWorldwide) {
+                fetchEarthquakes();
+                fetchTsunamiWarnings();
+            }
+        }, 90000);
 
         window.onload = () => {
-            initAudio();
             fetchEarthquakes();
+            fetchTsunamiWarnings();
             updateToggleButton();
+            loadTheme();
         };
     </script>
 </body>
