@@ -15,8 +15,15 @@
         body { font-family: 'Inter', system-ui, sans-serif; }
         #map { position: absolute; inset: 0; z-index: 1; }
         .header { z-index: 50; }
-        .bottom-sheet { z-index: 60; transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); }
-        .bottom-sheet.open { transform: translateY(0) !important; }
+        
+        .bottom-sheet {
+            z-index: 60;
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+            transform: translateY(calc(100% - 70px));
+        }
+        .bottom-sheet.open {
+            transform: translateY(0) !important;
+        }
         
         .alert-popup {
             animation: alertPop 0.4s ease;
@@ -120,7 +127,7 @@
     </div>
 
     <!-- Bottom Sheet -->
-    <div id="sidebar" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-zinc-900 rounded-t-3xl shadow-2xl flex flex-col max-h-[82vh] translate-y-[calc(100%-70px)]">
+    <div id="sidebar" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-zinc-900 rounded-t-3xl shadow-2xl flex flex-col max-h-[82vh]">
         <div onclick="toggleSidebar()" class="w-11 h-1 bg-zinc-600 rounded-full mx-auto mt-3 cursor-pointer"></div>
         <div class="px-5 py-3 border-b border-zinc-700 flex justify-between text-sm font-medium">
             <span>Recent Earthquakes</span>
@@ -294,7 +301,8 @@
         }
 
         function closeAlert() {
-            document.getElementById('alertPopup').style.display = 'none';
+            const popup = document.getElementById('alertPopup');
+            popup.style.display = 'none';
         }
 
         function updateList(filtered = null) {
@@ -390,7 +398,13 @@
         }
 
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
+            const sidebar = document.getElementById('sidebar');
+            // Force a reflow to ensure transition works
+            sidebar.style.transition = 'none';
+            void sidebar.offsetHeight;
+            sidebar.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+            
+            sidebar.classList.toggle('open');
         }
 
         function showSafetyModal() {
@@ -450,6 +464,12 @@
             fetchTsunamiWarnings();
             updateToggleButton();
             loadTheme();
+            
+            // Ensure sidebar is in correct initial state
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar.classList.contains('open')) {
+                sidebar.style.transform = 'translateY(calc(100% - 70px))';
+            }
         };
     </script>
 </body>
